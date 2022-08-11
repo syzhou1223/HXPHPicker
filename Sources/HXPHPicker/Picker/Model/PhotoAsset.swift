@@ -431,6 +431,15 @@ extension PhotoAsset {
                 suffix = "gif"
             }else {
                 suffix = "png"
+                for resource in PHAssetResource.assetResources(for: phAsset) where resource.type == .photo {
+                      let formType = resource.uniformTypeIdentifier
+                      let array = formType.split(separator: ".")
+                      if array.count == 2 {
+                          suffix = String(array[1])
+                      }
+                      break
+                }
+
             }
             imageFileURL = PhotoTools.getTmpURL(for: suffix)
         }
