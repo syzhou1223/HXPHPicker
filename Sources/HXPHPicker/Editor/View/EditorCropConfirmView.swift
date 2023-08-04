@@ -57,7 +57,7 @@ public class EditorCropConfirmView: UIView {
         resetButton.addTarget(self, action: #selector(didResetButtonClick(button:)), for: .touchUpInside)
         return resetButton
     }()
-    @objc func didFinishButtonClick(button: UIButton) {
+    @objc public func didFinishButtonClick(button: UIButton) {
         delegate?.cropConfirmView(didFinishButtonClick: self)
     }
     @objc func didResetButtonClick(button: UIButton) {
