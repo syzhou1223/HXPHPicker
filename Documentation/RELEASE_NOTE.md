@@ -1,5 +1,67 @@
 # Release Notes
 
+## 2.0.0
+
+- Fixed some issues
+- Editor optimization refactoring
+
+## 1.4.6
+
+### Resolved
+
+- [#68](https://github.com/SilenceLove/HXPHPicker/issues/68)
+- [#88](https://github.com/SilenceLove/HXPHPicker/issues/88)
+- [#96](https://github.com/SilenceLove/HXPHPicker/issues/96)
+- [#97](https://github.com/SilenceLove/HXPHPicker/issues/97)
+
+## 1.4.5
+
+### Resolved
+
+- [#89](https://github.com/SilenceLove/HXPHPicker/issues/89)
+- [#90](https://github.com/SilenceLove/HXPHPicker/issues/90)
+- [#91](https://github.com/SilenceLove/HXPHPicker/issues/91)
+- [#92](https://github.com/SilenceLove/HXPHPicker/issues/92)
+
+## 1.4.4
+
+### Optimizer
+
+The interface effect is optimized, and the method of judging the full screen is optimized
+  
+### Added
+
+- Picker
+  - `PhotoBrowser` Support dynamic configuration data, add/delete
+  
+- Editor
+  - You can set the subscript of the default selected aspect ratio
+  - The restore button supports hiding
+  - Aspect ratio list hiding requires emptying the array`aspectRatios = []`
+
+### Resolved
+
+- fix [#83](https://github.com/SilenceLove/HXPHPicker/issues/83]) [#83](https://github.com/SilenceLove/HXPHPicker/issues/82) [#79](https://github.com/SilenceLove/HXPHPicker/issues/79)
+
+- Picker
+  - `PickerView` memory leak fix
+  - Get the original video address error problem
+
+## 1.4.3
+
+adaptation`iPhone 14 Pro / Pro Max`
+
+## 1.4.2
+
+### Resolved
+
+- Picker
+  - The problem of download failure when previewing `m3u8` format video, if the `m3u8` format video will not be downloaded
+  - After adding the file, adding it again will crash
+
+- Camera
+  - crash in some cases
+
 ## 1.4.1
 
 ### Optimizer

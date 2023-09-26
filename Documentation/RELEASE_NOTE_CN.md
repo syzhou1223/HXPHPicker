@@ -1,5 +1,67 @@
 # 更新日志
 
+## 2.0.0
+
+- 修复了一些问题
+- 编辑器优化重构
+
+## 1.4.6
+
+### 修复
+
+- [#68](https://github.com/SilenceLove/HXPHPicker/issues/68)
+- [#88](https://github.com/SilenceLove/HXPHPicker/issues/88)
+- [#96](https://github.com/SilenceLove/HXPHPicker/issues/96)
+- [#97](https://github.com/SilenceLove/HXPHPicker/issues/97)
+
+## 1.4.5
+
+### 修复
+
+- [#89](https://github.com/SilenceLove/HXPHPicker/issues/89)
+- [#90](https://github.com/SilenceLove/HXPHPicker/issues/90)
+- [#91](https://github.com/SilenceLove/HXPHPicker/issues/91)
+- [#92](https://github.com/SilenceLove/HXPHPicker/issues/92)
+
+## 1.4.4
+
+### 优化
+
+界面效果优化，判断全面屏的方法优化  
+  
+### 新增
+
+- Picker
+  - `PhotoBrowser`支持动态配置数据、增加/删除
+
+- Editor
+  - 可以设置默认选中宽高比的下标
+  - 还原按钮支持隐藏
+  - 宽高比列表隐藏需要将数组置空`aspectRatios = []`
+
+### 修复
+
+- fix [#83](https://github.com/SilenceLove/HXPHPicker/issues/83]) [#83](https://github.com/SilenceLove/HXPHPicker/issues/82) [#79](https://github.com/SilenceLove/HXPHPicker/issues/79)
+
+- Picker
+  - `PickerView`内存泄漏修复
+  - 获取原始视频地址错误问题
+
+## 1.4.3
+
+适配`iPhone 14 Pro / Pro Max`
+
+## 1.4.2
+
+### 修复
+
+- Picker
+  - 预览`m3u8`格式视频时下载失败的问题，如果为`m3u8`格式的视频不会下载
+  - 添加文件之后再次添加会闪退
+
+- Camera
+  - 某种情况下会崩溃的问题
+
 ## 1.4.1
 
 ### 优化

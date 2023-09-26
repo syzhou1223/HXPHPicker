@@ -14,15 +14,6 @@ class HXPHPicker {}
 public enum Photo {
     
     #if HXPICKER_ENABLE_PICKER
-    /// 照片选择器
-    /// - Parameters:
-    ///   - config: 配置
-    ///   - selectedAssets: 当前选择的 PhotoAsset 对象数组
-    ///   - sender: 跳转的控制器
-    ///   - delegate: 代理
-    ///   - finish: 完成
-    ///   - cancel: 取消
-    /// - Returns: 对应的 PhotoPickerController 对象
     @discardableResult
     public static func picker(
         _ config: PickerConfiguration,
@@ -50,96 +41,23 @@ public enum Photo {
     #if HXPICKER_ENABLE_EDITOR
     @discardableResult
     public static func edit(
-        photo image: UIImage,
-        config: PhotoEditorConfiguration,
-        editResult: PhotoEditResult? = nil,
+        asset: EditorAsset,
+        config: EditorConfiguration,
         sender: UIViewController? = nil,
-        finished: PhotoEditorViewController.FinishHandler? = nil,
-        cancelled: PhotoEditorViewController.CancelHandler? = nil
-    ) -> EditorController {
-        let controller = EditorController(
-            image: image,
-            editResult: editResult,
+        finished: EditorViewController.FinishHandler? = nil,
+        cancelled: EditorViewController.CancelHandler? = nil
+    ) -> EditorViewController {
+        let vc = EditorViewController(
+            asset,
             config: config,
-            finished: finished,
-            cancelled: cancelled
+            finish: finished,
+            cancel: cancelled
         )
         (sender ?? UIViewController.topViewController)?.present(
-            controller,
+            vc,
             animated: true
         )
-        return controller
-    }
-    
-    @discardableResult
-    public static func edit(
-        video url: URL,
-        config: VideoEditorConfiguration,
-        editResult: VideoEditResult? = nil,
-        sender: UIViewController? = nil,
-        finished: VideoEditorViewController.FinishHandler? = nil,
-        cancelled: VideoEditorViewController.CancelHandler? = nil
-    ) -> EditorController {
-        let controller = EditorController(
-            videoURL: url,
-            editResult: editResult,
-            config: config,
-            finished: finished,
-            cancelled: cancelled
-        )
-        (sender ?? UIViewController.topViewController)?.present(
-            controller,
-            animated: true
-        )
-        return controller
-    }
-    #endif
-    
-    #if HXPICKER_ENABLE_PICKER && HXPICKER_ENABLE_EDITOR
-    @discardableResult
-    public static func edit(
-        photo photoAsset: PhotoAsset,
-        config: PhotoEditorConfiguration,
-        editResult: PhotoEditResult? = nil,
-        sender: UIViewController? = nil,
-        finished: PhotoEditorViewController.FinishHandler? = nil,
-        cancelled: PhotoEditorViewController.CancelHandler? = nil
-    ) -> EditorController {
-        let controller = EditorController(
-            photoAsset: photoAsset,
-            editResult: editResult,
-            config: config,
-            finished: finished,
-            cancelled: cancelled
-        )
-        (sender ?? UIViewController.topViewController)?.present(
-            controller,
-            animated: true
-        )
-        return controller
-    }
-    
-    @discardableResult
-    public static func edit(
-        video photoAsset: PhotoAsset,
-        config: VideoEditorConfiguration,
-        editResult: VideoEditResult? = nil,
-        sender: UIViewController? = nil,
-        finished: VideoEditorViewController.FinishHandler? = nil,
-        cancelled: VideoEditorViewController.CancelHandler? = nil
-    ) -> EditorController {
-        let controller = EditorController(
-            photoAsset: photoAsset,
-            editResult: editResult,
-            config: config,
-            finished: finished,
-            cancelled: cancelled
-        )
-        (sender ?? UIViewController.topViewController)?.present(
-            controller,
-            animated: true
-        )
-        return controller
+        return vc
     }
     #endif
     

@@ -109,15 +109,12 @@ public extension AssetManager {
     static func exportVideoURL(
         forVideo asset: PHAsset,
         toFile fileURL: URL,
-        exportPreset: ExportPreset,
-        videoQuality: Int,
+        exportParameter: VideoExportParameter,
         exportSession: ((AVAssetExportSession) -> Void)? = nil,
         completionHandler: ((Result<URL, AssetManager.AVAssetError>) -> Void)?
     ) {
         requestAVAsset(
-            for: asset,
-            iCloudHandler: nil,
-            progressHandler: nil
+            for: asset
         ) { (result) in
             switch result {
             case .success(let avResult):
@@ -132,9 +129,8 @@ public extension AssetManager {
                     let session = self.exportVideoURL(
                         forVideo: avResult.avAsset,
                         toFile: fileURL,
-                        exportPreset: exportPreset,
-                        videoQuality:
-                            videoQuality) { videoURL, error in
+                        exportParameter: exportParameter
+                    ) { videoURL, error in
                         if let videoURL = videoURL {
                             completionHandler?(.success(videoURL))
                         }else {
@@ -157,11 +153,10 @@ public extension AssetManager {
     static func exportVideoURL(
         forVideo avAsset: AVAsset,
         toFile fileURL: URL,
-        exportPreset: ExportPreset,
-        videoQuality: Int,
+        exportParameter: VideoExportParameter,
         completionHandler: ((URL?, Error?) -> Void)?
     ) -> AVAssetExportSession? {
-        var presetName = exportPreset.name
+        var presetName = exportParameter.preset.name
         let presets = AVAssetExportSession.exportPresets(compatibleWith: avAsset)
         if !presets.contains(presetName) {
             if presets.contains(AVAssetExportPresetHighestQuality) {
@@ -179,11 +174,16 @@ public extension AssetManager {
         exportSession?.outputURL = fileURL
         exportSession?.shouldOptimizeForNetworkUse = true
         exportSession?.outputFileType = .mp4
-        if videoQuality > 0 {
+        if exportParameter.quality > 0 {
+            var maxSize: Int?
+            if let urlAsset = avAsset as? AVURLAsset {
+                maxSize = urlAsset.url.fileSize
+            }
             exportSession?.fileLengthLimit = PhotoTools.exportSessionFileLengthLimit(
                 seconds: avAsset.duration.seconds,
-                exportPreset: exportPreset,
-                videoQuality: videoQuality
+                maxSize: maxSize,
+                exportPreset: exportParameter.preset,
+                videoQuality: exportParameter.quality
             )
         }
         exportSession?.exportAsynchronously(completionHandler: {

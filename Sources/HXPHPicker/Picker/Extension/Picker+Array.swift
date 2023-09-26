@@ -46,14 +46,15 @@ public extension Array where Element: PhotoAsset {
     
     /// 获取视频地址
     /// - Parameters:
-    ///   - exportPreset: 视频分辨率，默认ratio_640x480，传 nil 获取则是原始视频
-    ///   - videoQuality: 视频质量[0-10]，默认4
+    ///   - exportParameter: 导出参数，nil 为原始视频
     ///   - exportSession: 导出视频时对应的 AVAssetExportSession，exportPreset不为nil时触发
     ///   - videoURLHandler: 每一次获取视频地址都会触发
     ///   - completionHandler: 全部获取完成(失败的不会添加)
     func getVideoURL(
-        exportPreset: ExportPreset? = .ratio_640x480,
-        videoQuality: Int = 4,
+        exportParameter: VideoExportParameter? = .init(
+            preset: .ratio_960x540,
+            quality: 6
+        ),
         exportSession: PickerResult.AVAssetExportSessionHandler? = nil,
         videoURLHandler: PickerResult.URLHandler? = nil,
         completionHandler: @escaping ([URL]) -> Void
@@ -67,8 +68,7 @@ public extension Array where Element: PhotoAsset {
                 execute: DispatchWorkItem(block: {
                     let semaphore = DispatchSemaphore(value: 0)
                     photoAsset.getVideoURL(
-                        exportPreset: exportPreset,
-                        videoQuality: videoQuality,
+                        exportParameter: exportParameter,
                         exportSession: { session in
                             exportSession?(session, photoAsset, index)
                         }
@@ -124,7 +124,7 @@ public extension Array where Element: PhotoAsset {
     /// - Parameters:
     ///   - options: 获取的类型
     ///   - compression: 压缩参数，nil - 原图
-    ///   - handler: 获取到url的回调
+    ///   - urlReceivedHandler: 获取到url的回调
     ///     - result: 获取的结果
     ///     - photoAsset: 对应的 PhotoAsset 对象
     ///     - index: 当前索引
@@ -155,7 +155,7 @@ public extension Array where Element: PhotoAsset {
                     #if HXPICKER_ENABLE_EDITOR
                     if (photoAsset.mediaSubType == .livePhoto ||
                         photoAsset.mediaSubType == .localLivePhoto) &&
-                        photoAsset.photoEdit != nil {
+                        photoAsset.editedResult != nil {
                         mediatype = .photo
                     }
                     #endif
@@ -186,8 +186,7 @@ public extension Array where Element: PhotoAsset {
                         }
                     }else {
                         photoAsset.getVideoURL(
-                            exportPreset: compression?.videoExportPreset,
-                            videoQuality: compression?.videoQuality
+                            exportParameter: compression?.videoExportParameter
                         ) {
                             resultHandler($0)
                         }

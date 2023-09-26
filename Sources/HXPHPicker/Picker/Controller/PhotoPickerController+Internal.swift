@@ -48,14 +48,13 @@ extension PhotoPickerController {
             disablesCustomDismiss = true
         }
         if autoDismiss {
-            dismiss(animated: true, completion: nil)
+            dismiss(true)
         }
     }
     func cancelCallback() {
         #if HXPICKER_ENABLE_EDITOR
         editedPhotoAssetArray.forEach {
-            $0.photoEdit = $0.initialPhotoEdit
-            $0.videoEdit = $0.initialVideoEdit
+            $0.editedResult = $0.initialEditedResult
         }
         editedPhotoAssetArray.removeAll()
         #endif
@@ -123,33 +122,33 @@ extension PhotoPickerController {
     #if HXPICKER_ENABLE_EDITOR
     func shouldEditPhotoAsset(
         photoAsset: PhotoAsset,
-        editorConfig: PhotoEditorConfiguration,
+        editorConfig: EditorConfiguration,
         atIndex: Int
-    ) -> Bool {
-        if let shouldEditAsset = pickerDelegate?.pickerController(
+    ) -> EditorConfiguration? {
+        if let config = pickerDelegate?.pickerController(
             self,
             shouldEditPhotoAsset: photoAsset,
             editorConfig: editorConfig,
             atIndex: atIndex
         ) {
-            return shouldEditAsset
+            return config
         }
-        return true
+        return editorConfig
     }
     func shouldEditVideoAsset(
         videoAsset: PhotoAsset,
-        editorConfig: VideoEditorConfiguration,
+        editorConfig: EditorConfiguration,
         atIndex: Int
-    ) -> Bool {
-        if let shouldEditAsset = pickerDelegate?.pickerController(
+    ) -> EditorConfiguration? {
+        if let config = pickerDelegate?.pickerController(
             self,
             shouldEditVideoAsset: videoAsset,
             editorConfig: editorConfig,
             atIndex: atIndex
         ) {
-            return shouldEditAsset
+            return config
         }
-        return true
+        return editorConfig
     }
     #endif
     
@@ -175,16 +174,6 @@ extension PhotoPickerController {
             return previewShouldDeleteAsset
         }
         return true
-    }
-    func previewDidDeleteAsset(
-        photoAsset: PhotoAsset,
-        index: Int
-    ) {
-        pickerDelegate?.pickerController(
-            self,
-            previewDidDeleteAsset: photoAsset,
-            atIndex: index
-        )
     }
     func viewControllersWillAppear(_ viewController: UIViewController) {
         pickerDelegate?.pickerController(
@@ -223,90 +212,20 @@ extension PhotoPickerController {
         let operation = BlockOperation()
         operation.addExecutionBlock { [unowned operation] in
             var totalFileSize = 0
-            var total: Int = 0
-             
-            func calculationCompletion(_ totalSize: Int) {
-                if isPreview {
-                    self.previewRequestAdjustmentStatusIds.removeAll()
-                }else {
-                    self.requestAdjustmentStatusIds.removeAll()
-                }
-                DispatchQueue.main.async {
-                    completion(
-                        totalSize,
-                        PhotoTools.transformBytesToString(
-                                bytes: totalSize
-                        )
-                    )
-                }
-            }
-            
             for photoAsset in self.selectedAssetArray {
-                if operation.isCancelled {
-                    return
-                }
+                if operation.isCancelled { return }
                 if let fileSize = photoAsset.getPFileSize() {
                     totalFileSize += fileSize
-                    total += 1
-                    if total == self.selectedAssetArray.count {
-                        calculationCompletion(totalFileSize)
-                    }
                     continue
                 }
-                let requestId = photoAsset.checkAdjustmentStatus { (isAdjusted, asset) in
-                    if isAdjusted {
-                        if asset.mediaType == .photo {
-                            asset.requestImageData(
-                                iCloudHandler: nil,
-                                progressHandler: nil
-                            ) { sAsset, result in
-                                switch result {
-                                case .success(let dataResult):
-                                    sAsset.updateFileSize(dataResult.imageData.count)
-                                    totalFileSize += sAsset.fileSize
-                                    total += 1
-                                    if total == self.selectedAssetArray.count {
-                                        calculationCompletion(totalFileSize)
-                                    }
-                                case .failure(_):
-                                    total += 1
-                                    if total == self.selectedAssetArray.count {
-                                        calculationCompletion(totalFileSize)
-                                    }
-                                }
-                            }
-                        }else {
-                            asset.requestAVAsset(iCloudHandler: nil, progressHandler: nil) { (sAsset, avAsset, info) in
-                                if let urlAsset = avAsset as? AVURLAsset {
-                                    totalFileSize += urlAsset.url.fileSize
-                                }
-                                total += 1
-                                if total == self.selectedAssetArray.count {
-                                    calculationCompletion(totalFileSize)
-                                }
-                            } failure: { (sAsset, info, error) in
-                                total += 1
-                                if total == self.selectedAssetArray.count {
-                                    calculationCompletion(totalFileSize)
-                                }
-                            }
-                        }
-                        return
-                    }else {
-                        totalFileSize += asset.fileSize
-                    }
-                    total += 1
-                    if total == self.selectedAssetArray.count {
-                        calculationCompletion(totalFileSize)
-                    }
-                }
-                if let id = requestId, let phAsset = photoAsset.phAsset {
-                    if isPreview {
-                        self.previewRequestAdjustmentStatusIds.append([id: phAsset])
-                    }else {
-                        self.requestAdjustmentStatusIds.append([id: phAsset])
-                    }
-                }
+                totalFileSize += photoAsset.fileSize
+            }
+            if operation.isCancelled { return }
+            DispatchQueue.main.async {
+                completion(
+                    totalFileSize,
+                    totalFileSize.bytesString
+                )
             }
         }
         if isPreview {
@@ -320,20 +239,8 @@ extension PhotoPickerController {
     /// - Parameter isPreview: 是否预览界面
     func cancelRequestAssetFileSize(isPreview: Bool) {
         if isPreview {
-            for map in previewRequestAdjustmentStatusIds {
-                if let id = map.keys.first, let phAsset = map.values.first {
-                    phAsset.cancelContentEditingInputRequest(id)
-                }
-            }
-            previewRequestAdjustmentStatusIds.removeAll()
             previewRequestAssetBytesQueue.cancelAllOperations()
         }else {
-            for map in requestAdjustmentStatusIds {
-                if let id = map.keys.first, let phAsset = map.values.first {
-                    phAsset.cancelContentEditingInputRequest(id)
-                }
-            }
-            requestAdjustmentStatusIds.removeAll()
             requestAssetBytesQueue.cancelAllOperations()
         }
     }
@@ -449,9 +356,7 @@ extension PhotoPickerController {
         if photoAsset.mediaType == .photo {
             if config.maximumSelectedPhotoFileSize > 0 {
                 if photoAsset.fileSize > config.maximumSelectedPhotoFileSize {
-                    text = "照片大小超过最大限制".localized + PhotoTools.transformBytesToString(
-                        bytes: config.maximumSelectedPhotoFileSize
-                    )
+                    text = "照片大小超过最大限制".localized + config.maximumSelectedPhotoFileSize.bytesString
                     canSelect = false
                 }
             }
@@ -485,9 +390,7 @@ extension PhotoPickerController {
         if photoAsset.mediaType == .video {
             if config.maximumSelectedVideoFileSize > 0 {
                 if photoAsset.fileSize > config.maximumSelectedVideoFileSize {
-                    text = "视频大小超过最大限制".localized + PhotoTools.transformBytesToString(
-                        bytes: config.maximumSelectedVideoFileSize
-                    )
+                    text = "视频大小超过最大限制".localized + config.maximumSelectedVideoFileSize.bytesString
                     canSelect = false
                 }
             }
@@ -580,12 +483,8 @@ extension PhotoPickerController {
             }
         }
         if let text = text, !canSelect, showHUD {
-            if DispatchQueue.isMain {
-                ProgressHUD.showWarning(addedTo: view, text: text, animated: true, delayHide: 1.5)
-            }else {
-                DispatchQueue.main.async {
-                    ProgressHUD.showWarning(addedTo: self.view, text: text, animated: true, delayHide: 1.5)
-                }
+            DispatchQueue.main.async {
+                ProgressHUD.showWarning(addedTo: self.view, text: text, animated: true, delayHide: 1.5)
             }
         }
         return canSelect
@@ -624,8 +523,7 @@ extension PhotoPickerController {
             return
         }
         for photoAsset in editedPhotoAssetArray {
-            photoAsset.initialPhotoEdit = nil
-            photoAsset.initialVideoEdit = nil
+            photoAsset.initialEditedResult = nil
         }
         editedPhotoAssetArray.removeAll()
     }

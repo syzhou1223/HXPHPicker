@@ -9,7 +9,7 @@ import UIKit
 import AVFoundation
 
 class CameraManager: NSObject {
-    let config: CameraConfiguration
+    var config: CameraConfiguration
     
     lazy var session: AVCaptureSession = {
         AVCaptureSession()
@@ -88,9 +88,9 @@ class CameraManager: NSObject {
     init(config: CameraConfiguration) {
         self.flashMode = config.flashMode
         self.config = config
-        var photoFilters = config.photoFilters
+        var photoFilters = self.config.photoFilters
         photoFilters.insert(OriginalFilter(), at: 0)
-        var videoFilters = config.videoFilters
+        var videoFilters = self.config.videoFilters
         videoFilters.insert(OriginalFilter(), at: 0)
         var index = config.defaultFilterIndex
         if index == -1 {
@@ -125,7 +125,9 @@ class CameraManager: NSObject {
         }
         
         let videoInput = try AVCaptureDeviceInput(device: videoDevice)
-        
+        if !videoInput.device.supportsSessionPreset(session.sessionPreset) {
+            session.sessionPreset = .hd1920x1080
+        }
         if !session.canAddInput(videoInput) {
             throw NSError(
                 domain: "Does not support adding video input",
@@ -390,7 +392,17 @@ extension CameraManager {
         if let input = activeVideoInput {
             session.removeInput(input)
         }
+        if !videoInput.device.supportsSessionPreset(config.sessionPreset.system) {
+            session.sessionPreset = .hd1920x1080
+        }else {
+            if session.sessionPreset != config.sessionPreset.system {
+                session.sessionPreset = config.sessionPreset.system
+            }
+        }
         if !session.canAddInput(videoInput) {
+            if let input = activeVideoInput {
+                session.addInput(input)
+            }
             session.commitConfiguration()
             throw NSError(
                 domain: "Does not support adding audio input",
@@ -464,7 +476,9 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
             ]
         )
         settings.previewPhotoFormat = [
-            kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
+            kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA),
+            kCVPixelBufferWidthKey as String: config.sessionPreset.size.height,
+            kCVPixelBufferHeightKey as String: config.sessionPreset.size.width
         ]
         // Catpure Heif when available.
 //        if #available(iOS 11.0, *) {
@@ -510,11 +524,52 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
     ) {
         photoWillCapture?()
     }
+    
+    func photoOutput(
+        _ output: AVCapturePhotoOutput,
+        didFinishProcessingPhoto photoSampleBuffer: CMSampleBuffer?,
+        previewPhoto previewPhotoSampleBuffer: CMSampleBuffer?,
+        resolvedSettings: AVCaptureResolvedPhotoSettings,
+        bracketSettings: AVCaptureBracketedStillImageSettings?,
+        error: Error?
+    ) {
+        if #available(iOS 11.0, *) {
+            return
+        }
+        let sampleBuffer: CMSampleBuffer
+        if let previewPhotoSampleBuffer = previewPhotoSampleBuffer {
+            sampleBuffer = previewPhotoSampleBuffer
+        }else if let photoSampleBuffer = photoSampleBuffer {
+            sampleBuffer = photoSampleBuffer
+        }else {
+            photoCompletion?(nil)
+            return
+        }
+        guard let photoPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            photoCompletion?(nil)
+            return
+        }
+        let metaData = CMCopyDictionaryOfAttachments(
+            allocator: kCFAllocatorDefault,
+            target: sampleBuffer,
+            attachmentMode: kCMAttachmentMode_ShouldPropagate
+        )
+        finishProcessingPhoto(photoPixelBuffer, metaData)
+    }
+    
+    @available(iOS 11.0, *)
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         guard let photoPixelBuffer = photo.previewPixelBuffer else {
             photoCompletion?(nil)
             return
         }
+        finishProcessingPhoto(photoPixelBuffer, photo.metadata as CFDictionary)
+    }
+    
+    func finishProcessingPhoto(
+        _ photoPixelBuffer: CVPixelBuffer,
+        _ metaData: CFDictionary?
+    ) {
         var photoFormatDescription: CMFormatDescription?
         CMVideoFormatDescriptionCreateForImageBuffer(
             allocator: kCFAllocatorDefault,
@@ -546,7 +601,7 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
                 }
                 finalPixelBuffer = filteredBuffer
             }
-            let metadataAttachments = photo.metadata as CFDictionary
+            let metadataAttachments = metaData
             let jpegData = PhotoTools.jpegData(
                 withPixelBuffer: finalPixelBuffer,
                 attachments: metadataAttachments
@@ -756,11 +811,22 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate,
 //            AVVideoExpectedSourceFrameRateKey: 30,
 //            AVVideoMaxKeyFrameIntervalKey: 30
 //        ]
-        let videoCodecType: AVVideoCodecType
+        let videoCodecType: Any
+        let videoH264Type: Any
+        if #available(iOS 11.0, *) {
+            videoH264Type = AVVideoCodecType.h264
+        } else {
+            videoH264Type = AVVideoCodecH264
+        }
         if UIDevice.belowIphone7 {
-            videoCodecType = .h264
+            videoCodecType = videoH264Type
         }else {
-            videoCodecType = config.videoCodecType
+            if #available(iOS 11.0, *) {
+                videoCodecType = config.videoCodecType
+            } else {
+                // Fallback on earlier versions
+                videoCodecType = AVVideoCodecH264
+            }
         }
         let videoInput = AVAssetWriterInput(
             mediaType: .video,

@@ -79,19 +79,6 @@ extension UIView: HXPickerCompatible {
         return nil
     }
     
-//    func viewController() -> UIViewController? {
-//        var next = superview
-//        while next != nil {
-//            let nextResponder = next?.next
-//            if nextResponder is UINavigationController ||
-//                nextResponder is UIViewController {
-//                return nextResponder as? UIViewController
-//            }
-//            next = next?.superview
-//        }
-//        return nil
-//    }
-    
     /// UIView转UIImage
     /// - Returns: UIImage
     func convertedToImage(rect: CGRect = .zero) -> UIImage? {
@@ -109,8 +96,34 @@ extension UIView: HXPickerCompatible {
         UIGraphicsEndImageContext()
         return image
     }
+    
+    func cornersRound(radius:CGFloat, corner: UIRectCorner) {
+        if #available(iOS 11.0, *) {
+            layer.cornerRadius = radius
+            layer.maskedCorners = corner.mask
+        } else {
+            let path = UIBezierPath(
+                roundedRect: bounds,
+                byRoundingCorners: corner,
+                cornerRadii: CGSize(width: radius, height: radius)
+            )
+            let mask = CAShapeLayer()
+            mask.path = path.cgPath
+            layer.mask = mask
+        }
+    }
 }
 
+extension UIRectCorner {
+    var mask: CACornerMask {
+        switch self {
+        case .allCorners:
+            return [.layerMinXMinYCorner, .layerMinXMaxYCorner, .layerMaxXMinYCorner, .layerMaxXMaxYCorner]
+        default:
+            return .init(rawValue: rawValue)
+        }
+    }
+}
 public extension HXPickerWrapper where Base: UIView {
     var x: CGFloat {
         get { base.x }
@@ -147,7 +160,7 @@ public extension HXPickerWrapper where Base: UIView {
     func show(
         text: String? = nil,
         delayShow: TimeInterval = 0,
-        indicatorType: BaseConfiguration.IndicatorType = .system,
+        indicatorType: IndicatorType = .system,
         animated: Bool = true
     ) {
         ProgressHUD.showLoading(

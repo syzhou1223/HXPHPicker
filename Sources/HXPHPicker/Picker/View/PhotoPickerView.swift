@@ -95,7 +95,7 @@ open class PhotoPickerView: UIView {
             manager.config.maximumSelectedVideoCount == 1 &&
             manager.config.selectOptions.isPhoto &&
             manager.config.selectOptions.isVideo &&
-            manager.config.photoList.cell.singleVideoHideSelect {
+            manager.config.photoList.cell.isHiddenSingleVideoSelect {
             videoLoadSingleCell = true
         }else {
             videoLoadSingleCell = false
@@ -149,9 +149,9 @@ open class PhotoPickerView: UIView {
         }
         if config.allowAddCamera {
             collectionView.register(
-                PickerCamerViewCell.self,
+                PickerCameraViewCell.self,
                 forCellWithReuseIdentifier:
-                    NSStringFromClass(PickerCamerViewCell.classForCoder())
+                    NSStringFromClass(PickerCameraViewCell.classForCoder())
             )
         }
         if config.allowAddLimit && AssetManager.authorizationStatusIsLimited() {
@@ -182,7 +182,7 @@ open class PhotoPickerView: UIView {
     let isMultipleSelect: Bool
     let videoLoadSingleCell: Bool
     var assets: [PhotoAsset] = []
-    var cameraCell: PickerCamerViewCell {
+    var cameraCell: PickerCameraViewCell {
         var indexPath: IndexPath
         if config.sort == .asc {
             indexPath = IndexPath(item: assets.count, section: 0)
@@ -191,10 +191,10 @@ open class PhotoPickerView: UIView {
         }
         let cell = collectionView.dequeueReusableCell(
             withReuseIdentifier: NSStringFromClass(
-                PickerCamerViewCell.classForCoder()
+                PickerCameraViewCell.classForCoder()
             ),
             for: indexPath
-        ) as! PickerCamerViewCell
+        ) as! PickerCameraViewCell
         return cell
     }
     var limitAddCell: PhotoPickerLimitCell {
@@ -228,7 +228,7 @@ open class PhotoPickerView: UIView {
     }()
     lazy var deniedView: DeniedAuthorizationView = {
         var config = manager.config.notAuthorized
-        config.hiddenCloseButton = true
+        config.isHiddenCloseButton = true
         let deniedView = DeniedAuthorizationView(config: config)
         return deniedView
     }()
@@ -321,8 +321,5 @@ open class PhotoPickerView: UIView {
     }
     required public init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-    deinit {
-//        print("deinit:\(self)")
     }
 }
