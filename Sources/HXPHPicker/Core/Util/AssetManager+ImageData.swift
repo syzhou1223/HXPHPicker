@@ -37,8 +37,8 @@ public extension AssetManager {
     static func requestImageData(
         for asset: PHAsset,
         version: PHImageRequestOptionsVersion,
-        iCloudHandler: ((PHImageRequestID) -> Void)?,
-        progressHandler: PHAssetImageProgressHandler?,
+        iCloudHandler: ((PHImageRequestID) -> Void)? = nil,
+        progressHandler: PHAssetImageProgressHandler? = nil,
         resultHandler: @escaping ImageDataResultHandler
     ) -> PHImageRequestID {
         return requestImageData(
@@ -169,7 +169,7 @@ public extension AssetManager {
                 let sureOrientation = self.transformImageOrientation(
                     orientation: imageOrientation
                 )
-                if DispatchQueue.isMain {
+                if DispatchQueue.isMain || options.isSynchronous {
                     result(
                         imageData: imageData,
                         dataUTI: dataUTI,
@@ -193,7 +193,7 @@ public extension AssetManager {
                 for: asset,
                 options: options
             ) { (imageData, dataUTI, imageOrientation, info) in
-                if DispatchQueue.isMain {
+                if DispatchQueue.isMain || options.isSynchronous {
                     result(
                         imageData: imageData,
                         dataUTI: dataUTI,

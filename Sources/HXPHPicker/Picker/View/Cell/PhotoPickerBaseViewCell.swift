@@ -21,9 +21,9 @@ public extension PhotoPickerViewCellDelegate {
 }
 
 open class PhotoPickerBaseViewCell: UICollectionViewCell {
-    /// 代理
+    
     public weak var delegate: PhotoPickerViewCellDelegate?
-    /// 配置
+    
     public var config: PhotoListCellConfiguration? {
         didSet {
             photoView.targetWidth = config?.targetWidth ?? 250
@@ -36,6 +36,8 @@ open class PhotoPickerBaseViewCell: UICollectionViewCell {
     /// 展示图片
     public lazy var photoView: PhotoThumbnailView = {
         let photoView = PhotoThumbnailView()
+        photoView.size = size
+        photoView.imageView.size = size
         photoView.fadeImage = PhotoManager.shared.firstLoadAssets
         return photoView
     }()
@@ -119,7 +121,7 @@ open class PhotoPickerBaseViewCell: UICollectionViewCell {
     /// 获取是否在iCloud
     open func requestICloudState() {
         guard let config = config,
-              config.showICloudMark else {
+              config.isShowICloudMark else {
             return
         }
         cancelICloudRequest()
@@ -191,13 +193,8 @@ open class PhotoPickerBaseViewCell: UICollectionViewCell {
     var isRequestDirectly = true
     var iCloundLoading = false
     var requestICloudCompletion = false
-    var observation: Any?
     deinit {
         cancelRequest()
-        if let observation = observation {
-            NotificationCenter.default.removeObserver(observation)
-            self.observation = nil
-        }
     }
     required public init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
@@ -217,31 +214,4 @@ extension PhotoPickerBaseViewCell {
             self.cancelICloudRequest()
         }
     }
-//    private func addLoadModeObserver() {
-//        observation = NotificationCenter
-//            .default
-//            .addObserver(
-//                forName: .ThumbnailLoadModeDidChange,
-//                object: nil,
-//                queue: .main
-//            ) { [weak self] notification in
-//                guard let self = self else { return }
-//                let mode = PhotoManager.shared.thumbnailLoadMode
-//                if mode == .simplify {
-//                    self.photoView.cancelRequest()
-//                    if !self.requestICloudCompletion {
-//                        self.cancelICloudRequest()
-//                    }
-//                    return
-//                }
-//                if let needReload = notification.userInfo?["needReload"] as? Bool,
-//                   !needReload {
-//                    return
-//                }
-//                self.photoView.reloadImage()
-//                if !self.requestICloudCompletion && !self.iCloundLoading {
-//                    self.requestICloudState()
-//                }
-//            }
-//    }
 }

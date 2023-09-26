@@ -16,7 +16,7 @@ extension PhotoAsset {
         resultHandler: @escaping AssetURLCompletion
     ) {
         #if HXPICKER_ENABLE_EDITOR
-        if photoEdit != nil {
+        if photoEditedResult != nil {
             getEditedImageURL(
                 toFile: fileURL,
                 compressionQuality: compressionQuality,
@@ -26,12 +26,8 @@ extension PhotoAsset {
         }
         #endif
         func result(_ result: Result<AssetURLResult, AssetError>) {
-            if DispatchQueue.isMain {
+            DispatchQueue.main.async {
                 resultHandler(result)
-            }else {
-                DispatchQueue.main.async {
-                    resultHandler(result)
-                }
             }
         }
         if let localImageURL = getLocalImageAssetURL() {
@@ -146,7 +142,7 @@ extension PhotoAsset {
         resultHandler: @escaping (UIImage?, PhotoAsset) -> Void
     ) {
         #if HXPICKER_ENABLE_EDITOR
-        if photoEdit != nil || videoEdit != nil {
+        if editedResult != nil {
             resultHandler(getEditedImage(), self)
             return
         }
@@ -177,6 +173,7 @@ extension PhotoAsset {
                 localImageAsset?.image = img
                 image = img
             }else if let imageURL = localLivePhoto?.imageURL,
+                     imageURL.isFileURL,
                      let img = UIImage(contentsOfFile: imageURL.path) {
                 image = img
            }
@@ -212,7 +209,7 @@ extension PhotoAsset {
         resultHandler: AssetURLCompletion
     ) {
         #if HXPICKER_ENABLE_EDITOR
-        if videoEdit != nil {
+        if videoEditedResult != nil {
             getEditedVideoURL(
                 toFile: fileURL,
                 resultHandler: resultHandler
@@ -267,7 +264,7 @@ extension PhotoAsset {
     
     func getLocalImageAssetURL() -> URL? {
         #if HXPICKER_ENABLE_EDITOR
-        if photoEdit != nil {
+        if photoEditedResult != nil {
             return nil
         }
         #endif
@@ -278,7 +275,7 @@ extension PhotoAsset {
     }
     func getLocalImageData() -> Data? {
         #if HXPICKER_ENABLE_EDITOR
-        if photoEdit != nil || videoEdit != nil {
+        if editedResult != nil {
             return getEditedImageData()
         }
         #endif
@@ -341,7 +338,7 @@ extension PhotoAsset {
             }
         }
         #if HXPICKER_ENABLE_EDITOR
-        if photoEdit != nil || videoEdit != nil {
+        if editedResult != nil {
             if let imageData = getEditedImageData(),
                let image = getEditedImage() {
                 resultSuccess(

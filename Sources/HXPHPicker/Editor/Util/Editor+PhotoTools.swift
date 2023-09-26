@@ -11,71 +11,19 @@ import CoreImage
 import CoreServices
 
 extension PhotoTools {
-    static func createAnimatedImage(
-        images: [UIImage],
-        delays: [Double],
-        toFile filePath: URL? = nil
-    ) -> URL? {
-        if images.isEmpty || delays.isEmpty {
-            return nil
-        }
-        let frameCount = images.count
-        let imageURL = filePath == nil ? getImageTmpURL(.gif) : filePath!
-        guard let destination = CGImageDestinationCreateWithURL(
-                imageURL as CFURL,
-                kUTTypeGIF as CFString,
-                frameCount, nil
-        ) else {
-            return nil
-        }
-        let gifProperty = [
-            kCGImagePropertyGIFDictionary: [
-                kCGImagePropertyGIFHasGlobalColorMap: true,
-                kCGImagePropertyColorModel: kCGImagePropertyColorModelRGB,
-                kCGImagePropertyDepth: 8,
-                kCGImagePropertyGIFLoopCount: 0
-            ]
-        ]
-        CGImageDestinationSetProperties(destination, gifProperty as CFDictionary)
-        for (index, image) in images.enumerated() {
-            let delay = delays[index]
-            let framePreperty = [
-                kCGImagePropertyGIFDictionary: [
-                    kCGImagePropertyGIFDelayTime: delay
-                ]
-            ]
-            if let cgImage = image.cgImage {
-                CGImageDestinationAddImage(destination, cgImage, framePreperty as CFDictionary)
-            }
-        }
-        if CGImageDestinationFinalize(destination) {
-            return imageURL
-        }
-        removeFile(fileURL: imageURL)
-        return nil
-    }
     
-    static func getFrameDuration(from gifInfo: [String: Any]?) -> TimeInterval {
-        let defaultFrameDuration = 0.1
-        guard let gifInfo = gifInfo else { return defaultFrameDuration }
-        
-        let unclampedDelayTime = gifInfo[kCGImagePropertyGIFUnclampedDelayTime as String] as? NSNumber
-        let delayTime = gifInfo[kCGImagePropertyGIFDelayTime as String] as? NSNumber
-        let duration = unclampedDelayTime ?? delayTime
-        
-        guard let frameDuration = duration else { return defaultFrameDuration }
-        return frameDuration.doubleValue > 0.011 ? frameDuration.doubleValue : defaultFrameDuration
-    }
-
-    static func getFrameDuration(
-        from imageSource: CGImageSource,
-        at index: Int
-    ) -> TimeInterval {
-        guard let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, index, nil)
-            as? [String: Any] else { return 0.0 }
-
-        let gifInfo = properties[kCGImagePropertyGIFDictionary as String] as? [String: Any]
-        return getFrameDuration(from: gifInfo)
+    static func getCompressionQuality(_ dataCount: CGFloat) -> CGFloat? {
+        var compressionQuality: CGFloat?
+        if dataCount > 30000000 {
+            compressionQuality = 25000000 / dataCount
+        }else if dataCount > 15000000 {
+            compressionQuality = 10000000 / dataCount
+        }else if dataCount > 10000000 {
+            compressionQuality = 6000000 / dataCount
+        }else if dataCount > 3000000 {
+            compressionQuality = 3000000 / dataCount
+        }
+        return compressionQuality
     }
     
     public static func defaultColors() -> [String] {
@@ -86,7 +34,7 @@ extension PhotoTools {
         if let audioURL = URL(string: "http://tsnrhapp.oss-cn-hangzhou.aliyuncs.com/chartle/%E5%A4%A9%E5%A4%96%E6%9D%A5%E7%89%A9.mp3"), // swiftlint:disable:this line_length
            let lrc = "天外来物".lrc {
             let info = VideoEditorMusicInfo(
-                audioURL: audioURL,
+                audioURL: .network(url: audioURL),
                 lrc: lrc
             )
             infos.append(info)
@@ -116,105 +64,101 @@ extension PhotoTools {
     
     /// 默认滤镜
     public static func defaultFilters() -> [PhotoEditorFilterInfo] {
-        [
+        var filters: [PhotoEditorFilterInfo] = []
+        filters.append(contentsOf: [
             PhotoEditorFilterInfo(
                 filterName: "唯美".localized
-            ) { image, _, _, _ in
+            ) { image, _, parameters, _ in
                 nashvilleFilter(image)
             },
             PhotoEditorFilterInfo(
                 filterName: "梦幻".localized
-            ) { (image, _, _, _) in
+            ) { (image, _, parameters, _) in
                 toasterFilter(image)
             },
             PhotoEditorFilterInfo(
                 filterName: "1977"
-            ) { (image, _, _, _) in
+            ) { (image, _, parameters, _) in
                 apply1977Filter(image)
             },
             PhotoEditorFilterInfo(
                 filterName: "怀旧".localized
-            ) { (image, _, _, _) in
-                image.filter(
+            ) { (image, _, parameters, _) in
+                image.hx.filter(
                     name: "CIPhotoEffectInstant",
                     parameters: [:]
                 )
             },
             PhotoEditorFilterInfo(
                 filterName: "岁月".localized
-            ) { (image, _, _, _) in
-                image.filter(
+            ) { (image, _, parameters, _) in
+                image.hx.filter(
                     name: "CIPhotoEffectTransfer",
                     parameters: [:]
                 )
             },
             PhotoEditorFilterInfo(
                 filterName: "模糊".localized,
-                defaultValue: 0.2
-            ) { (image, lastImage, value, event) in
-                if event == .touchUpInside {
-                    return image.blurredImage(50 * value)
-                }
-                return nil
-            },
+                parameters: [.init(defaultValue: 0.2)],
+                filterHandler: { image, _, parameters, isCover in
+                    image.blurredImage(isCover ? 10 : 50 * parameters[0].value)
+            }),
             PhotoEditorFilterInfo(
                 filterName: "褪色".localized
-            ) { (image, _, _, _) in
-                image.filter(
+            ) { (image, _, parameters, _) in
+                image.hx.filter(
                     name: "CIPhotoEffectFade",
                     parameters: [:]
                 )
             },
             PhotoEditorFilterInfo(
                 filterName: "冲印".localized
-            ) { (image, _, _, _) in
-                image.filter(
+            ) { (image, _, parameters, _) in
+                image.hx.filter(
                     name: "CIPhotoEffectProcess",
                     parameters: [:]
                 )
             },
             PhotoEditorFilterInfo(
                 filterName: "铬黄".localized
-            ) { (image, _, _, _) in
-                image.filter(
+            ) { (image, _, parameters, _) in
+                image.hx.filter(
                     name: "CIPhotoEffectChrome",
                     parameters: [:]
                 )
             },
             PhotoEditorFilterInfo(
                 filterName: "老电影".localized,
-                defaultValue: 1
-            ) { (image, lastImage, value, event) in
-                if event == .touchUpInside {
-                    return oldMovie(image, value: value)
-                }
-                return nil
-            },
+                parameters: [.init(defaultValue: 1)],
+                filterHandler: { image, _, parameters , isCover in
+                    return oldMovie(image, value: isCover ? 1 : parameters[0].value)
+            }),
             PhotoEditorFilterInfo(
                 filterName: "色调".localized
-            ) { (image, _, _, _) in
-                image.filter(
+            ) { (image, _, parameters, _) in
+                image.hx.filter(
                     name: "CIPhotoEffectTonal",
                     parameters: [:]
                 )
             },
             PhotoEditorFilterInfo(
                 filterName: "单色".localized
-            ) { (image, _, _, _) in
-                image.filter(
+            ) { (image, _, parameters, _) in
+                image.hx.filter(
                     name: "CIPhotoEffectMono",
                     parameters: [:]
                 )
             },
             PhotoEditorFilterInfo(
                 filterName: "黑白".localized
-            ) { (image, _, _, _) in
-                image.filter(
+            ) { (image, _, parameters, _) in
+                image.hx.filter(
                     name: "CIPhotoEffectNoir",
                     parameters: [:]
                 )
             }
-        ]
+        ])
+        return filters
     }
     
     public static func defaultVideoFilters() -> [PhotoEditorFilterInfo] {
@@ -235,115 +179,109 @@ extension PhotoTools {
             },
             PhotoEditorFilterInfo(
                 filterName: "1977"
-            ) { (image, _, _, _) in
+            ) { (image, _, parameters, _) in
                 apply1977Filter(image)
             } videoFilterHandler: { ciImage, _ in
                 apply1977Filter(ciImage)
             },
             PhotoEditorFilterInfo(
                 filterName: "怀旧".localized
-            ) { (image, _, _, _) in
-                image.filter(
+            ) { image, _, _, _ in
+                image.hx.filter(
                     name: "CIPhotoEffectInstant",
                     parameters: [:]
                 )
             } videoFilterHandler: { ciImage, _ in
-                ciImage.filter(name: "CIPhotoEffectInstant", parameters: [:])
+                ciImage.hx.filter(name: "CIPhotoEffectInstant", parameters: [:])
             },
             PhotoEditorFilterInfo(
                 filterName: "岁月".localized
             ) { (image, _, _, _) in
-                image.filter(
+                image.hx.filter(
                     name: "CIPhotoEffectTransfer",
                     parameters: [:]
                 )
             } videoFilterHandler: { ciImage, _ in
-                ciImage.filter(name: "CIPhotoEffectTransfer", parameters: [:])
+                ciImage.hx.filter(name: "CIPhotoEffectTransfer", parameters: [:])
             },
             PhotoEditorFilterInfo(
                 filterName: "模糊".localized,
-                defaultValue: 0.2
-            ) { (image, lastImage, value, event) in
-                if event == .touchUpInside {
-                    return image.blurredImage(50.0 * value)
-                }
-                return nil
-            } videoFilterHandler: {
-                $0.filter(
+                parameters: [.init(defaultValue: 0.2)],
+                filterHandler: { image, _, _, _ in
+                    return image.blurredImage(10)
+            }, videoFilterHandler: {
+                $0.hx.filter(
                     name: "CIGaussianBlur",
-                    parameters: [kCIInputRadiusKey: 50.0 * $1]
+                    parameters: [kCIInputRadiusKey: 50.0 * $1[0].value]
                 )
-            },
+            }),
             PhotoEditorFilterInfo(
                 filterName: "褪色".localized
             ) { (image, _, _, _) in
-                image.filter(
+                image.hx.filter(
                     name: "CIPhotoEffectFade",
                     parameters: [:]
                 )
             } videoFilterHandler: { ciImage, _ in
-                ciImage.filter(name: "CIPhotoEffectFade", parameters: [:])
+                ciImage.hx.filter(name: "CIPhotoEffectFade", parameters: [:])
             },
             PhotoEditorFilterInfo(
                 filterName: "冲印".localized
             ) { (image, _, _, _) in
-                image.filter(
+                image.hx.filter(
                     name: "CIPhotoEffectProcess",
                     parameters: [:]
                 )
             } videoFilterHandler: { ciImage, _ in
-                ciImage.filter(name: "CIPhotoEffectProcess", parameters: [:])
+                ciImage.hx.filter(name: "CIPhotoEffectProcess", parameters: [:])
             },
             PhotoEditorFilterInfo(
                 filterName: "铬黄".localized
             ) { (image, _, _, _) in
-                image.filter(
+                image.hx.filter(
                     name: "CIPhotoEffectChrome",
                     parameters: [:]
                 )
             } videoFilterHandler: { ciImage, _ in
-                ciImage.filter(name: "CIPhotoEffectChrome", parameters: [:])
+                ciImage.hx.filter(name: "CIPhotoEffectChrome", parameters: [:])
             },
             PhotoEditorFilterInfo(
                 filterName: "老电影".localized,
-                defaultValue: 1
-            ) { (image, lastImage, value, event) in
-                if event == .touchUpInside {
-                    return oldMovie(image, value: value)
-                }
-                return nil
-            } videoFilterHandler: {
-                oldMovie($0, value: $1)
-            },
+                parameters: [.init(defaultValue: 1)],
+                filterHandler: { image, _, _, _ in
+                    oldMovie(image, value: 1)
+            }, videoFilterHandler: {
+                oldMovie($0, value: $1[0].value)
+            }),
             PhotoEditorFilterInfo(
                 filterName: "色调".localized
             ) { (image, _, _, _) in
-                image.filter(
+                image.hx.filter(
                     name: "CIPhotoEffectTonal",
                     parameters: [:]
                 )
             } videoFilterHandler: { ciImage, _ in
-                ciImage.filter(name: "CIPhotoEffectTonal", parameters: [:])
+                ciImage.hx.filter(name: "CIPhotoEffectTonal", parameters: [:])
             },
             PhotoEditorFilterInfo(
                 filterName: "单色".localized
             ) { (image, _, _, _) in
-                image.filter(
+                image.hx.filter(
                     name: "CIPhotoEffectMono",
                     parameters: [:]
                 )
             } videoFilterHandler: { ciImage, _ in
-                ciImage.filter(name: "CIPhotoEffectMono", parameters: [:])
+                ciImage.hx.filter(name: "CIPhotoEffectMono", parameters: [:])
             },
             PhotoEditorFilterInfo(
                 filterName: "黑白".localized
             ) { (image, _, _, _) in
-                image.filter(
+                image.hx.filter(
                     name: "CIPhotoEffectNoir",
                     parameters: [:]
                 )
             } videoFilterHandler: { ciImage, _ in
-                ciImage.filter(name: "CIPhotoEffectNoir", parameters: [:])
+                ciImage.hx.filter(name: "CIPhotoEffectNoir", parameters: [:])
             }
         ]
     }

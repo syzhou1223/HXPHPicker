@@ -9,9 +9,11 @@ import UIKit
 
 extension PhotoPreviewViewController {
     @objc func didSelectBoxControlClick() {
-        guard let picker = pickerController else { return }
+        guard let picker = pickerController,
+            let photoAsset = photoAsset(for: currentPreviewIndex) else {
+            return
+        }
         let isSelected = !selectBoxControl.isSelected
-        let photoAsset = previewAssets[currentPreviewIndex]
         var canUpdate = false
         var bottomNeedAnimated = false
         var pickerUpdateCell = false
@@ -31,7 +33,7 @@ extension PhotoPreviewViewController {
             func addAsset() {
                 if picker.addedPhotoAsset(photoAsset: photoAsset) {
                     canUpdate = true
-                    if config.bottomView.showSelectedView && isMultipleSelect && config.showBottomView {
+                    if config.bottomView.isShowSelectedView && isMultipleSelect && config.isShowBottomView {
                         bottomView.selectedView.insertPhotoAsset(
                             photoAsset: photoAsset
                         )
@@ -64,21 +66,26 @@ extension PhotoPreviewViewController {
             if !beforeIsEmpty && picker.selectedAssetArray.isEmpty {
                 bottomNeedAnimated = true
             }
-            if config.bottomView.showSelectedView &&
+            if config.bottomView.isShowSelectedView &&
                 isMultipleSelect &&
-                config.showBottomView {
+                config.isShowBottomView {
                 bottomView.selectedView.removePhotoAsset(
                     photoAsset: photoAsset
                 )
             }
             #if HXPICKER_ENABLE_EDITOR
-            if photoAsset.videoEdit != nil {
-                photoAsset.videoEdit = nil
-                let cell = getCell(for: currentPreviewIndex)
-                cell?.photoAsset = photoAsset
-                cell?.cancelRequest()
-                cell?.requestPreviewAsset()
-                pickerUpdateCell = true
+            if let editedResult = photoAsset.editedResult {
+                switch editedResult {
+                case .video(_, _):
+                    photoAsset.editedResult = nil
+                    let cell = getCell(for: currentPreviewIndex)
+                    cell?.photoAsset = photoAsset
+                    cell?.cancelRequest()
+                    cell?.requestPreviewAsset()
+                    pickerUpdateCell = true
+                default:
+                    break
+                }
             }
             #endif
             canUpdate = true
@@ -99,9 +106,9 @@ extension PhotoPreviewViewController {
         pickerUpdateCell: Bool,
         bottomNeedAnimated: Bool
     ) {
-        if config.bottomView.showSelectedView &&
+        if config.bottomView.isShowSelectedView &&
             isMultipleSelect &&
-            config.showBottomView {
+            config.isShowBottomView {
             if bottomNeedAnimated {
                 UIView.animate(withDuration: 0.25) {
                     self.configBottomViewFrame()
@@ -122,7 +129,7 @@ extension PhotoPreviewViewController {
             isSelected: isSelected,
             updateCell: pickerUpdateCell
         )
-        if config.showBottomView {
+        if config.isShowBottomView {
             bottomView.updateFinishButtonTitle()
         }
         selectBoxControl.layer.removeAnimation(

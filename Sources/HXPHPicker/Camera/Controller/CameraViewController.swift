@@ -6,7 +6,9 @@
 //
 
 import UIKit
+#if HXPICKER_ENABLE_CAMERA_LOCATION
 import CoreLocation
+#endif
 import AVFoundation
 
 /// 需要有导航栏
@@ -14,7 +16,7 @@ open class CameraViewController: BaseViewController {
     public weak var delegate: CameraViewControllerDelegate?
     
     /// 相机配置
-    public let config: CameraConfiguration
+    public var config: CameraConfiguration
     /// 相机类型
     public let type: CameraController.CaptureType
     /// 内部自动dismiss
@@ -46,6 +48,7 @@ open class CameraViewController: BaseViewController {
         self.type = type
         self.delegate = delegate
         super.init(nibName: nil, bundle: nil)
+        self.autoDismiss = config.isAutoBack
     }
     private var didLayoutPreview = false
     lazy var previewView: CameraPreviewView = {
@@ -83,7 +86,7 @@ open class CameraViewController: BaseViewController {
         let layer = PhotoTools.getGradientShadowLayer(true)
         return layer
     }()
-    
+    #if HXPICKER_ENABLE_CAMERA_LOCATION
     lazy var locationManager: CLLocationManager = {
         let manager = CLLocationManager()
         manager.delegate = self
@@ -92,12 +95,14 @@ open class CameraViewController: BaseViewController {
         manager.requestWhenInUseAuthorization()
         return manager
     }()
-    var firstShowFilterName = true
-    var didLocation: Bool = false
     var currentLocation: CLLocation?
+    var didLocation: Bool = false
+    #endif
+    var firstShowFilterName = true
     var currentZoomFacto: CGFloat = 1
     
     private var requestCameraSuccess = false
+    private var sessionCommitConfiguration = true
     
     open override func viewDidLoad() {
         super.viewDidLoad()
@@ -108,12 +113,15 @@ open class CameraViewController: BaseViewController {
         navigationController?.navigationBar.tintColor = .white
         
         if !UIImagePickerController.isSourceTypeAvailable(.camera) {
+            bottomView.isGestureEnable = false
+            view.addSubview(bottomView)
             PhotoTools.showConfirm(
                 viewController: self,
                 title: "相机不可用!".localized,
                 message: nil,
                 actionTitle: "确定".localized
-            ) { _ in
+            ) { [weak self] _ in
+                guard let self = self else { return }
                 self.dismiss(animated: true)
             }
             return
@@ -122,7 +130,13 @@ open class CameraViewController: BaseViewController {
             if isGranted {
                 self.setupCamera()
             }else {
-                PhotoTools.showNotCameraAuthorizedAlert(viewController: self)
+                self.bottomView.isGestureEnable = false
+                self.view.addSubview(self.bottomView)
+                PhotoTools.showNotCameraAuthorizedAlert(
+                    viewController: self
+                ) {
+                    self.dismiss(animated: true)
+                }
             }
         }
         
@@ -200,6 +214,7 @@ open class CameraViewController: BaseViewController {
         view.addSubview(bottomView)
         DispatchQueue.global().async {
             do {
+                self.sessionCommitConfiguration = false
                 self.cameraManager.session.beginConfiguration()
                 try self.cameraManager.startSession()
                 var needAddAudio = false
@@ -219,7 +234,6 @@ open class CameraViewController: BaseViewController {
                     self.addAudioInput()
                 }
             } catch {
-                print(error)
                 self.cameraManager.session.commitConfiguration()
                 DispatchQueue.main.async {
                     PhotoTools.showConfirm(
@@ -278,8 +292,9 @@ open class CameraViewController: BaseViewController {
     }
     
     func addOutputCompletion() {
+        cameraManager.session.commitConfiguration()
+        sessionCommitConfiguration = true
         if config.cameraType == .normal {
-            cameraManager.session.commitConfiguration()
             cameraManager.startRunning()
         }
         requestCameraSuccess = true
@@ -299,7 +314,9 @@ open class CameraViewController: BaseViewController {
             addSwithCameraButton()
         }
         bottomView.addGesture(for: type)
+        #if HXPICKER_ENABLE_CAMERA_LOCATION
         startLocation()
+        #endif
     }
     
     func addSwithCameraButton() {
@@ -342,6 +359,9 @@ open class CameraViewController: BaseViewController {
         super.viewDidAppear(animated)
         if requestCameraSuccess {
             if config.cameraType == .normal {
+                if !sessionCommitConfiguration {
+                    cameraManager.session.commitConfiguration()
+                }
                 cameraManager.startRunning()
             }
         }
@@ -432,9 +452,11 @@ open class CameraViewController: BaseViewController {
         fatalError("init(coder:) has not been implemented")
     }
     deinit {
+        #if HXPICKER_ENABLE_CAMERA_LOCATION
         if allowLocation && didLocation {
             locationManager.stopUpdatingLocation()
         }
+        #endif
         DeviceOrientationHelper.shared.stopDeviceOrientationNotifier()
     }
 }
